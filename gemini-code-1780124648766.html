@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Race Results Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        input[type="text"], select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 15px;
+            background-color: #fff;
+        }
+        input[type="text"] {
+            width: 100%;
+            max-width: 300px;
+        }
+        select {
+            max-width: 200px;
+            cursor: pointer;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+        }
+        th {
+            background-color: #2980b9;
+            color: white;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        th:hover {
+            background-color: #3498db;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .gender-f {
+            color: #e84393;
+            font-weight: bold;
+        }
+        .gender-m {
+            color: #0984e3;
+            font-weight: bold;
+        }
+        .th-sort-asc::after { content: " ▲"; font-size: 11px; }
+        .th-sort-desc::after { content: " ▼"; font-size: 11px; }
+    </style>
+</head>
+<body>
+
+    <h2>Live Race Results</h2>
+    <p style="color: #7f8c8d; margin-top: 0; margin-bottom: 20px;">Click column headers to sort. Use filters to search for teams or individuals.</p>
+    
+    <div class="controls">
+        <input type="text" id="searchInput" placeholder="Search by name, bib, or club..." onkeyup="filterTable()">
+        
+        <select id="categoryFilter" onchange="filterTable()">
+            <option value="All">All Categories</option>
+            <option value="Fun Run 3 Pax">Fun Run 3 Pax</option>
+            <option value="Fun Run 4 Pax">Fun Run 4 Pax</option>
+            <option value="Men Open">Men Open</option>
+            <option value="Mixed Open">Mixed Open</option>
+        </select>
+    </div>
+
+    <table id="resultsTable">
+        <thead>
+            <tr>
+                <th onclick="sortTable(0)">Pl</th>
+                <th onclick="sortTable(1)">Contest</th>
+                <th onclick="sortTable(2)">Bib</th>
+                <th onclick="sortTable(3)">Club</th>
+                <th onclick="sortTable(4)">#</th>
+                <th onclick="sortTable(5)">Name</th>
+                <th onclick="sortTable(6)">Gender</th>
+                <th onclick="sortTable(7)">Time</th>
+                <th onclick="sortTable(8)">Gap</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            </tbody>
+    </table>
+
+    <script>
+        // Data completely parsed and injected from your spreadsheet snippet
+        const runnerData = [
+            {"pl": 1, "contest": "Fun Run 3 Pax", "bib": "711", "club": "KL Souma Kai 2", "leg": "Runner 1", "name": "HIKARI GOINO", "gender": "f", "time": "00:12:37", "gap": "--"},
+            {"pl": 1, "contest": "Fun Run 3 Pax", "bib": "711", "club": "KL Souma Kai 2", "leg": "Runner 2", "name": "AYA MIZUSHIMA", "gender": "f", "time": "00:00:33", "gap": "--"},
+            {"pl": 1, "contest": "Fun Run 3 Pax", "bib": "711", "club": "KL Souma Kai 2", "leg": "Runner 3", "name": "TSUBAKITANI YURIE", "gender": "f", "time": "00:10:08", "gap": "--"},
+            {"pl": 2, "contest": "Fun Run 3 Pax", "bib": "702", "club": "The Gen 3 Rascals", "leg": "Runner 1", "name": "DARSHAN THINAGARAN", "gender": "m", "time": "00:12:02", "gap": "+54"},
+            {"pl": 2, "contest": "Fun Run 3 Pax", "bib": "702", "club": "The Gen 3 Rascals", "leg": "Runner 2", "name": "LARRYCLYDE JAY ZEE LAU", "gender": "m", "time": "00:00:34", "gap": "+54"},
+            {"pl": 2, "contest": "Fun Run 3 Pax", "bib": "702", "club": "The Gen 3 Rascals", "leg": "Runner 3", "name": "IRWYN, JAY VERN LAU", "gender": "m", "time": "00:11:36", "gap": "+54"},
+            {"pl": 3, "contest": "Fun Run 3 Pax", "bib": "707", "club": "Chigasaki", "leg": "Runner 1", "name": "MASAKI OMATA", "gender": "m", "time": "00:11:02", "gap": "+1:38"},
+            {"pl": 3, "contest": "Fun Run 3 Pax", "bib": "707", "club": "Chigasaki", "leg": "Runner 2", "name": "TOMOKO OMATA", "gender": "f", "time": "00:00:35", "gap": "+1:38"},
+            {"pl": 3, "contest": "Fun Run 3 Pax", "bib": "707", "club": "Chigasaki", "leg": "Runner 3", "name": "YURI OMATA", "gender": "f", "time": "00:13:20", "gap": "+1:38"},
+            {"pl": 4, "contest": "Fun Run 3 Pax", "bib": "710", "club": "THE BANGCHIK CLAN", "leg": "Runner 1", "name": "SEROJA", "gender": "f", "time": "00:11:26", "gap": "+1:48"},
+            {"pl": 4, "contest": "Fun Run 3 Pax", "bib": "710", "club": "THE BANGCHIK CLAN", "leg": "Runner 2", "name": "FIRDAUS", "gender": "m", "time": "00:00:37", "gap": "+1:48"},
+            {"pl": 4, "contest": "Fun Run 3 Pax", "bib": "710", "club": "THE BANGCHIK CLAN", "leg": "Runner 3", "name": "MD ISA ISMAIL", "gender": "m", "time": "00:13:04", "gap": "+1:48"},
+            {"pl": 5, "contest": "Fun Run 3 Pax", "bib": "709", "club": "Uncle J", "leg": "Runner 1", "name": "LIM WEN JIT", "gender": "m", "time": "00:12:18", "gap": "+3:11"},
+            {"pl": 5, "contest": "Fun Run 3 Pax", "bib": "709", "club": "Uncle J", "leg": "Runner 2", "name": "LOW BOON HUI", "gender": "m", "time": "00:00:37", "gap": "+3:11"},
+            {"pl": 5, "contest": "Fun Run 3 Pax", "bib": "709", "club": "Uncle J", "leg": "Runner 3", "name": "TAY BOON KIAT", "gender": "m", "time": "00:13:35", "gap": "+3:11"},
+            {"pl": 6, "contest": "Fun Run 3 Pax", "bib": "706", "club": "Powerpuff girls", "leg": "Runner 1", "name": "SIAW  YIN FUNG", "gender": "f", "time": "00:11:42", "gap": "+3:40"},
+            {"pl": 6, "contest": "Fun Run 3 Pax", "bib": "706", "club": "Powerpuff girls", "leg": "Runner 2", "name": "WONG  LEE SIA", "gender": "f", "time": "00:00:35", "gap": "+3:40"},
+            {"pl": 6, "contest": "Fun Run 3 Pax", "bib": "706", "club": "Powerpuff girls", "leg": "Runner 3", "name": "WONG LEE SIN", "gender": "f", "time": "00:14:43", "gap": "+3:40"},
+            {"pl": 7, "contest": "Fun Run 3 Pax", "bib": "712", "club": "KPM GILA RUN!", "leg": "Runner 1", "name": "HD RAMOS", "gender": "m", "time": "00:13:43", "gap": "+3:54"},
+            {"pl": 7, "contest": "Fun Run 3 Pax", "bib": "712", "club": "KPM GILA RUN!", "leg": "Runner 2", "name": "SYIFA SHAHRIMAN", "gender": "f", "time": "00:00:37", "gap": "+3:54"},
+            {"pl": 7, "contest": "Fun Run 3 Pax", "bib": "712", "club": "KPM GILA RUN!", "leg": "Runner 3", "name": "NAZRIN", "gender": "m", "time": "00:12:54", "gap": "+3:54"},
+            {"pl": 8, "contest": "Fun Run 3 Pax", "bib": "708", "club": "Santai Shifters", "leg": "Runner 1", "name": "GHAZALI GHANI", "gender": "m", "time": "00:14:50", "gap": "+5:21"},
+            {"pl": 8, "contest": "Fun Run 3 Pax", "bib": "708", "club": "Santai Shifters", "leg": "Runner 2", "name": "MARYATI MOHAMED", "gender": "f", "time": "00:00:38", "gap": "+5:21"},
+            {"pl": 8, "contest": "Fun Run 3 Pax", "bib": "708", "club": "Santai Shifters", "leg": "Runner 3", "name": "DHARMARAJAN SAKARAN", "gender": "m", "time": "00:13:12", "gap": "+5:21"},
+            {"pl": 9, "contest": "Fun Run 3 Pax", "bib": "701", "club": "3 Generation Ladies", "leg": "Runner 1", "name": "DENISHA THINAGARAN", "gender": "f", "time": "00:14:02", "gap": "+5:33"},
+            {"pl": 9, "contest": "Fun Run 3 Pax", "bib": "701", "club": "3 Generation Ladies", "leg": "Runner 2", "name": "SIOK KIM SU", "gender": "f", "time": "00:00:39", "gap": "+5:33"},
+            {"pl": 9, "contest": "Fun Run 3 Pax", "bib": "701", "club": "3 Generation Ladies", "leg": "Runner 3", "name": "ON LING WONG", "gender": "f", "time": "00:14:11", "gap": "+5:33"},
+            {"pl": 10, "contest": "Fun Run 3 Pax", "bib": "703", "club": "ROAD WARRIOR", "leg": "Runner 1", "name": "KON YIN HOH", "gender": "m", "time": "00:15:24", "gap": "+7:19"},
+            {"pl": 10, "contest": "Fun Run 3 Pax", "bib": "703", "club": "ROAD WARRIOR", "leg": "Runner 2", "name": "SONG HUEY CHU", "gender": "f", "time": "00:00:34", "gap": "+7:19"},
+            {"pl": 10, "contest": "Fun Run 3 Pax", "bib": "703", "club": "ROAD WARRIOR", "leg": "Runner 3", "name": "CHOO  TENG SENG", "gender": "m", "time": "00:14:40", "gap": "+7:19"},
+            {"pl": 11, "contest": "Fun Run 3 Pax", "bib": "705", "club": "Just 4 Fun", "leg": "Runner 1", "name": "SU LIN KON", "gender": "f", "time": "00:14:13", "gap": "+8:11"},
+            {"pl": 11, "contest": "Fun Run 3 Pax", "bib": "705", "club": "Just 4 Fun", "leg": "Runner 2", "name": "MENG MIN LAW", "gender": "f", "time": "00:00:39", "gap": "+8:11"},
+            {"pl": 11, "contest": "Fun Run 3 Pax", "bib": "705", "club": "Just 4 Fun", "leg": "Runner 3", "name": "CHIEW BOON NG", "gender": "f", "time": "00:16:38", "gap": "+8:11"},
+            {"pl": 12, "contest": "Fun Run 3 Pax", "bib": "704", "club": "WEJ", "leg": "Runner 1", "name": "ESU CHANG", "gender": "f", "time": "00:17:31", "gap": "+9:42"},
+            {"pl": 12, "contest": "Fun Run 3 Pax", "bib": "704", "club": "WEJ", "leg": "Runner 2", "name": "SUWITO TOH", "gender": "m", "time": "00:00:39", "gap": "+9:42"},
+            {"pl": 12, "contest": "Fun Run 3 Pax", "bib": "704", "club": "WEJ", "leg": "Runner 3", "name": "CHAN JUN KIT", "gender": "m", "time": "00:14:51", "gap": "+9:42"},
+            {"pl": 1, "contest": "Fun Run 4 Pax", "bib": "608", "club": "Pacesetters #1", "leg": "Runner 1", "name": "EDMOND LIM", "gender": "m", "time": "00:12:59", "gap": "--"},
+            {"pl": 1, "contest": "Fun Run 4 Pax", "bib": "608", "club": "Pacesetters #1", "leg": "Runner 2", "name": "CHUNG SENG SIM", "gender": "m", "time": "00:10:04", "gap": "--"},
+            {"pl": 1, "contest": "Fun Run 4 Pax", "bib": "608", "club": "Pacesetters #1", "leg": "Runner 3", "name": "JASON CHEN", "gender": "m", "time": "00:09:28", "gap": "--"},
+            {"pl": 1, "contest": "Fun Run 4 Pax", "bib": "608", "club": "Pacesetters #1", "leg": "Runner 4", "name": "JOYCE LEE", "gender": "f", "time": "00:08:32", "gap": "--"},
+            {"pl": 2, "contest": "Fun Run 4 Pax", "bib": "616", "club": "The Chaos Crew", "leg": "Runner 1", "name": "HENDRIK JAMES ANTHONY", "gender": "m", "time": "00:09:56", "gap": "+2:17"},
+            {"pl": 2, "contest": "Fun Run 4 Pax", "bib": "616", "club": "The Chaos Crew", "leg": "Runner 2", "name": "JEREMIAH JAMES ANTHONY", "gender": "m", "time": "00:11:36", "gap": "+2:17"},
+            {"pl": 2, "contest": "Fun Run 4 Pax", "bib": "616", "club": "The Chaos Crew", "leg": "Runner 3", "name": "ANUNCIA JAMES ANTHONY", "gender": "f", "time": "00:10:12", "gap": "+2:17"},
+            {"pl": 2, "contest": "Fun Run 4 Pax", "bib": "616", "club": "The Chaos Crew", "leg": "Runner 4", "name": "HELENA JASELINE", "gender": "f", "time": "00:11:36", "gap": "+2:17"},
+            {"pl": 3, "contest": "Fun Run 4 Pax", "bib": "607", "club": "JJRC", "leg": "Runner 1", "name": "QIAN LEE", "gender": "m", "time": "00:12:30", "gap": "+6:40"},
+            {"pl": 3, "contest": "Fun Run 4 Pax", "bib": "607", "club": "JJRC", "leg": "Runner 2", "name": "KELVIN KAI WAI YEOH", "gender": "m", "time": "00:09:57", "gap": "+6:40"},
+            {"pl": 3, "contest": "Fun Run 4 Pax", "bib": "607", "club": "JJRC", "leg": "Runner 3", "name": "BOON FOO LEE", "gender": "m", "time": "00:14:56", "gap": "+6:40"},
+            {"pl": 3, "contest": "Fun Run 4 Pax", "bib": "607", "club": "JJRC", "leg": "Runner 4", "name": "BOON GUAN LEE", "gender": "m", "time": "00:10:20", "gap": "+6:40"},
+            {"pl": 4, "contest": "Fun Run 4 Pax", "bib": "618", "club": "SUPER", "leg": "Runner 1", "name": "HUI LING WU", "gender": "f", "time": "00:12:23", "gap": "+8:55"},
+            {"pl": 4, "contest": "Fun Run 4 Pax", "bib": "618", "club": "SUPER", "leg": "Runner 2", "name": "LIT JIN HO", "gender": "m", "time": "00:12:06", "gap": "+8:55"},
+            {"pl": 4, "contest": "Fun Run 4 Pax", "bib": "618", "club": "SUPER", "leg": "Runner 3", "name": "YIAN HONG LIM", "gender": "f", "time": "00:10:23", "gap": "+8:55"},
+            {"pl": 4, "contest": "Fun Run 4 Pax", "bib": "618", "club": "SUPER", "leg": "Runner 4", "name": "MUI CHIN TAN", "gender": "f", "time": "00:15:06", "gap": "+8:55"},
+            {"pl": 5, "contest": "Fun Run 4 Pax", "bib": "613", "club": "WWL RUN BUDDIES", "leg": "Runner 1", "name": "WONG KOK HING", "gender": "m", "time": "00:11:24", "gap": "+9:15"},
+            {"pl": 5, "contest": "Fun Run 4 Pax", "bib": "613", "club": "WWL RUN BUDDIES", "leg": "Runner 2", "name": "WOO CHONG KEONG", "gender": "m", "time": "00:12:20", "gap": "+9:15"},
+            {"pl": 5, "contest": "Fun Run 4 Pax", "bib": "613", "club": "WWL RUN BUDDIES", "leg": "Runner 3", "name": "FC WING", "gender": "m", "time": "00:13:18", "gap": "+9:15"},
+            {"pl": 5, "contest": "Fun Run 4 Pax", "bib": "613", "club": "WWL RUN BUDDIES", "leg": "Runner 4", "name": "LIM CHEE BING", "gender": "m", "time": "00:13:17", "gap": "+9:15"},
+            {"pl": 6, "contest": "Fun Run 4 Pax", "bib": "601", "club": "After Hour", "leg": "Runner 1", "name": "IZZATI JAMAL", "gender": "f", "time": "00:12:19", "gap": "+9:42"},
+            {"pl": 6, "contest": "Fun Run 4 Pax", "bib": "601", "club": "After Hour", "leg": "Runner 2", "name": "NABILAH  DAYANA", "gender": "f", "time": "00:14:38", "gap": "+9:42"},
+            {"pl": 6, "contest": "Fun Run 4 Pax", "bib": "601", "club": "After Hour", "leg": "Runner 3", "name": "MOHD  ZULKANAIDI", "gender": "m", "time": "00:12:33", "gap": "+9:42"},
+            {"pl": 6, "contest": "Fun Run 4 Pax", "bib": "601", "club": "After Hour", "leg": "Runner 4", "name": "FAIRI  AZRIE", "gender": "m", "time": "00:11:16", "gap": "+9:42"},
+            {"pl": 7, "contest": "Fun Run 4 Pax", "bib": "604", "club": "SJKC YUK CHAI ALL STARS 11", "leg": "Runner 1", "name": "CHOW SIEW KENG", "gender": "f", "time": "00:13:06", "gap": "+11:08"},
+            {"pl": 7, "contest": "Fun Run 4 Pax", "bib": "604", "club": "SJKC YUK CHAI ALL STARS 11", "leg": "Runner 2", "name": "HUNG CHEON YEI", "gender": "m", "time": "00:12:50", "gap": "+11:08"},
+            {"pl": 7, "contest": "Fun Run 4 Pax", "bib": "604", "club": "SJKC YUK CHAI ALL STARS 11", "leg": "Runner 3", "name": "LEOW JOO LING", "gender": "f", "time": "00:14:17", "gap": "+11:08"},
+            {"pl": 7, "contest": "Fun Run 4 Pax", "bib": "604", "club": "SJKC YUK CHAI ALL STARS 11", "leg": "Runner 4", "name": "YONG KOK WEI", "gender": "m", "time": "00:11:58", "gap": "+11:08"},
+            {"pl": 8, "contest": "Fun Run 4 Pax", "bib": "605", "club": "SJKC YUK CHAI ALL STARS 12", "leg": "Runner 1", "name": "JOEY LOW WAI YEE", "gender": "f", "time": "00:12:44", "gap": "+11:38"},
+            {"pl": 8, "contest": "Fun Run 4 Pax", "bib": "605", "club": "SJKC YUK CHAI ALL STARS 12", "leg": "Runner 2", "name": "JOSEPH TEOH POH TECK", "gender": "m", "time": "00:12:42", "gap": "+11:38"},
+            {"pl": 8, "contest": "Fun Run 4 Pax", "bib": "605", "club": "SJKC YUK CHAI ALL STARS 12", "leg": "Runner 3", "name": "ELSIE JANE AMBER", "gender": "f", "time": "00:14:45", "gap": "+11:38"},
+            {"pl": 8, "contest": "Fun Run 4 Pax", "bib": "605", "club": "SJKC YUK CHAI ALL STARS 12", "leg": "Runner 4", "name": "CHEAH MUN LAN", "gender": "f", "time": "00:12:30", "gap": "+11:38"},
+            {"pl": 9, "contest": "Fun Run 4 Pax", "bib": "612", "club": "4 fingers", "leg": "Runner 1", "name": "CHONG KEN HUAT", "gender": "m", "time": "00:14:00", "gap": "+12:15"},
+            {"pl": 9, "contest": "Fun Run 4 Pax", "bib": "612", "club": "4 fingers", "leg": "Runner 2", "name": "LEE SUE MIN", "gender": "f", "time": "00:11:08", "gap": "+12:15"},
+            {"pl": 9, "contest": "Fun Run 4 Pax", "bib": "612", "club": "4 fingers", "leg": "Runner 3", "name": "LAU CHEE BENG", "gender": "m", "time": "00:13:42", "gap": "+12:15"},
+            {"pl": 9, "contest": "Fun Run 4 Pax", "bib": "612", "club": "4 fingers", "leg": "Runner 4", "name": "CHONG JUN YAN", "gender": "m", "time": "00:14:29", "gap": "+12:15"},
+            {"pl": 10, "contest": "Fun Run 4 Pax", "bib": "615", "club": "WhooSis", "leg": "Runner 1", "name": "JEFFERY LEONG WENG HO", "gender": "m", "time": "00:12:25", "gap": "+13:34"},
+            {"pl": 10, "contest": "Fun Run 4 Pax", "bib": "615", "club": "WhooSis", "leg": "Runner 2", "name": "LIM WEY CHYN", "gender": "f", "time": "00:14:41", "gap": "+13:34"},
+            {"pl": 10, "contest": "Fun Run 4 Pax", "bib": "615", "club": "WhooSis", "leg": "Runner 3", "name": "TEH BOON SHIUH", "gender": "m", "time": "00:11:58", "gap": "+13:34"},
+            {"pl": 10, "contest": "Fun Run 4 Pax", "bib": "615", "club": "WhooSis", "leg": "Runner 4", "name": "LIM WEY SY", "gender": "f", "time": "00:15:34", "gap": "+13:34"},
+            {"pl": 11, "contest": "Fun Run 4 Pax", "bib": "610", "club": "CEMPAKA TEAM 4", "leg": "Runner 1", "name": "ABIGAIL HUANG", "gender": "f", "time": "00:12:05", "gap": "+15:03"},
+            {"pl": 11, "contest": "Fun Run 4 Pax", "bib": "610", "club": "CEMPAKA TEAM 4", "leg": "Runner 2", "name": "HARLEEN HANSANAN KAUR", "gender": "f", "time": "00:13:34", "gap": "+15:03"},
+            {"pl": 11, "contest": "Fun Run 4 Pax", "bib": "610", "club": "CEMPAKA TEAM 4", "leg": "Runner 3", "name": "KAIFEI WANG", "gender": "f", "time": "00:16:38", "gap": "+15:03"},
+            {"pl": 11, "contest": "Fun Run 4 Pax", "bib": "610", "club": "CEMPAKA TEAM 4", "leg": "Runner 4", "name": "ZAQUAN AMRI ZAIN AMRI", "gender": "m", "time": "00:13:50", "gap": "+15:03"},
+            {"pl": 12, "contest": "Fun Run 4 Pax", "bib": "609", "club": "Pacesetters #2", "leg": "Runner 1", "name": "MICHAEL  YEOH", "gender": "m", "time": "00:12:27", "gap": "+15:08"},
+            {"pl": 12, "contest": "Fun Run 4 Pax", "bib": "609", "club": "Pacesetters #2", "leg": "Runner 2", "name": "WAI LEONG LAM", "gender": "m", "time": "00:12:34", "gap": "+15:08"},
+            {"pl": 12, "contest": "Fun Run 4 Pax", "bib": "609", "club": "Pacesetters #2", "leg": "Runner 3", "name": "KIM YOONG LIEW", "gender": "m", "time": "00:13:58", "gap": "+15:08"},
+            {"pl": 12, "contest": "Fun Run 4 Pax", "bib": "609", "club": "Pacesetters #2", "leg": "Runner 4", "name": "SOOK WAI CHOW", "gender": "f", "time": "00:17:13", "gap": "+15:08"},
+            {"pl": 13, "contest": "Fun Run 4 Pax", "bib": "603", "club": "SJKC YUK CHAI ALL STARS 10", "leg": "Runner 1", "name": "DOREEN TANG YEN KEE", "gender": "f", "time": "00:15:04", "gap": "+16:16"},
+            {"pl": 13, "contest": "Fun Run 4 Pax", "bib": "603", "club": "SJKC YUK CHAI ALL STARS 10", "leg": "Runner 2", "name": "LIM CHOOI YIN", "gender": "f", "time": "00:13:52", "gap": "+16:16"},
+            {"pl": 13, "contest": "Fun Run 4 Pax", "bib": "603", "club": "SJKC YUK CHAI ALL STARS 10", "leg": "Runner 3", "name": "ANG LAY MING", "gender": "f", "time": "00:16:05", "gap": "+16:16"},
+            {"pl": 13, "contest": "Fun Run 4 Pax", "bib": "603", "club": "SJKC YUK CHAI ALL STARS 10", "leg": "Runner 4", "name": "ALEX CHONG YIOW FEI", "gender": "m", "time": "00:12:19", "gap": "+16:16"},
+            {"pl": 14, "contest": "Fun Run 4 Pax", "bib": "602", "club": "SJKC YUK CHAI ALL STARS 9", "leg": "Runner 1", "name": "LEE SIEW SIEN", "gender": "f", "time": "00:16:50", "gap": "+16:53"},
+            {"pl": 14, "contest": "Fun Run 4 Pax", "bib": "602", "club": "SJKC YUK CHAI ALL STARS 9", "leg": "Runner 2", "name": "ALEX CHIN KOK CHING", "gender": "m", "time": "00:13:56", "gap": "+16:53"},
+            {"pl": 14, "contest": "Fun Run 4 Pax", "bib": "602", "club": "SJKC YUK CHAI ALL STARS 9", "leg": "Runner 3", "name": "ELAINE TANG YOOK LING", "gender": "f", "time": "00:13:51", "gap": "+16:53"},
+            {"pl": 14, "contest": "Fun Run 4 Pax", "bib": "602", "club": "SJKC YUK CHAI ALL STARS 9", "leg": "Runner 4", "name": "DANIEL BIAM", "gender": "m", "time": "00:13:19", "gap": "+16:53"},
+            {"pl": 15, "contest": "Fun Run 4 Pax", "bib": "617", "club": "Triple Three Plus 4", "leg": "Runner 1", "name": "TEOH JIA WEI", "gender": "m", "time": "00:13:57", "gap": "+18:13"},
+            {"pl": 15, "contest": "Fun Run 4 Pax", "bib": "617", "club": "Triple Three Plus 4", "leg": "Runner 2", "name": "KOK CHIK SOON", "gender": "m", "time": "00:16:13", "gap": "+18:13"},
+            {"pl": 15, "contest": "Fun Run 4 Pax", "bib": "617", "club": "Triple Three Plus 4", "leg": "Runner 3", "name": "LEE CHIAN HUI", "gender": "f", "time": "00:15:11", "gap": "+18:13"},
+            {"pl": 15, "contest": "Fun Run 4 Pax", "bib": "617", "club": "Triple Three Plus 4", "leg": "Runner 4", "name": "LEE CHIEN CHIEN", "gender": "f", "time": "00:13:56", "gap": "+18:13"},
+            {"pl": 16, "contest": "Fun Run 4 Pax", "bib": "606", "club": "HAIDILAO", "leg": "Runner 1", "name": "LILIAN  LEE", "gender": "f", "time": "00:13:52", "gap": "+19:12"},
+            {"pl": 16, "contest": "Fun Run 4 Pax", "bib": "606", "club": "HAIDILAO", "leg": "Runner 2", "name": "CHENG SEE TAN", "gender": "f", "time": "00:14:52", "gap": "+19:12"},
+            {"pl": 16, "contest": "Fun Run 4 Pax", "bib": "606", "club": "HAIDILAO", "leg": "Runner 3", "name": "DHIREN RAI DIPENDRA", "gender": "m", "time": "00:14:06", "gap": "+19:12"},
+            {"pl": 16, "contest": "Fun Run 4 Pax", "bib": "606", "club": "HAIDILAO", "leg": "Runner 4", "name": "EU WEN WONG", "gender": "m", "time": "00:17:26", "gap": "+19:12"},
+            {"pl": 17, "contest": "Fun Run 4 Pax", "bib": "619", "club": "PACEMAKERS USA", "leg": "Runner 1", "name": "ALFIE TAN", "gender": "m", "time": "00:13:52", "gap": "+23:03"},
+            {"pl": 17, "contest": "Fun Run 4 Pax", "bib": "619", "club": "PACEMAKERS USA", "leg": "Runner 2", "name": "JOHNSON WANG", "gender": "m", "time": "00:19:11", "gap": "+23:03"},
+            {"pl": 17, "contest": "Fun Run 4 Pax", "bib": "619", "club": "PACEMAKERS USA", "leg": "Runner 3", "name": "IVAN LEE LEN CHOW", "gender": "m", "time": "00:16:37", "gap": "+23:03"},
+            {"pl": 17, "contest": "Fun Run 4 Pax", "bib": "619", "club": "PACEMAKERS USA", "leg": "Runner 4", "name": "LUW CHEE KONG", "gender": "m", "time": "00:14:27", "gap": "+23:03"},
+            {"pl": 18, "contest": "Fun Run 4 Pax", "bib": "620", "club": "KPM AVENGERSMY", "leg": "Runner 1", "name": "ERY", "gender": "m", "time": "00:14:37", "gap": "+24:01"},
+            {"pl": 18, "contest": "Fun Run 4 Pax", "bib": "620", "club": "KPM AVENGERSMY", "leg": "Runner 2", "name": "KIFLI HASSAN", "gender": "m", "time": "00:16:59", "gap": "+24:01"},
+            {"pl": 18, "contest": "Fun Run 4 Pax", "bib": "620", "club": "KPM AVENGERSMY", "leg": "Runner 3", "name": "LYNN", "gender": "f", "time": "00:15:41", "gap": "+24:01"},
+            {"pl": 18, "contest": "Fun Run 4 Pax", "bib": "620", "club": "KPM AVENGERSMY", "leg": "Runner 4", "name": "PANJANG", "gender": "m", "time": "00:17:48", "gap": "+24:01"},
+            {"pl": 19, "contest": "Fun Run 4 Pax", "bib": "614", "club": "The Thunder Racer", "leg": "Runner 1", "name": "LEWIS TAN ZE YANG", "gender": "m", "time": "00:14:53", "gap": "+30:06"},
+            {"pl": 19, "contest": "Fun Run 4 Pax", "bib": "614", "club": "The Thunder Racer", "leg": "Runner 2", "name": "TAN CHEANG CHENG", "gender": "m", "time": "00:17:35", "gap": "+30:06"},
+            {"pl": 19, "contest": "Fun Run 4 Pax", "bib": "614", "club": "The Thunder Racer", "leg": "Runner 3", "name": "TENG LING LI", "gender": "f", "time": "00:18:18", "gap": "+30:06"},
+            {"pl": 19, "contest": "Fun Run 4 Pax", "bib": "614", "club": "The Thunder Racer", "leg": "Runner 4", "name": "TENG LINDSAY", "gender": "f", "time": "00:20:23", "gap": "+30:06"},
+            {"pl": 20, "contest": "Fun Run 4 Pax", "bib": "611", "club": "Captain America", "leg": "Runner 1", "name": "CANDY LOCK", "gender": "f", "time": "00:18:39", "gap": "+38:26"},
+            {"pl": 20, "contest": "Fun Run 4 Pax", "bib": "611", "club": "Captain America", "leg": "Runner 2", "name": "KRIS  CHENG", "gender": "m", "time": "00:20:14", "gap": "+38:26"},
+            {"pl": 20, "contest": "Fun Run 4 Pax", "bib": "611", "club": "Captain America", "leg": "Runner 3", "name": "LUM YH", "gender": "m", "time": "00:19:52", "gap": "+38:26"},
+            {"pl": 20, "contest": "Fun Run 4 Pax", "bib": "611", "club": "Captain America", "leg": "Runner 4", "name": "GUN WEI KUANG", "gender": "m", "time": "00:20:45", "gap": "+38:26"},
+            {"pl": 1, "contest": "Men Open", "bib": "110", "club": "Kiprun - Decathlon Malaysia", "leg": "Runner 1", "name": "WONG CHIN CHUN", "gender": "m", "time": "00:11:56", "gap": "--"},
+            {"pl": 1, "contest": "Men Open", "bib": "110", "club": "Kiprun - Decathlon Malaysia", "leg": "Runner 2", "name": "MUHAMMAD FARHANUDDIN BIN MOHD ZAHLI", "gender": "m", "time": "00:09:50", "gap": "--"},
+            {"pl": 1, "contest": "Men Open", "bib": "110", "club": "Kiprun - Decathlon Malaysia", "leg": "Runner 3", "name": "MUHAMMAD FAAIZ DANIAL  BIN ZAWARI", "gender": "m", "time": "00:11:46", "gap": "--"},
+            {"pl": 1, "contest": "Men Open", "bib": "110", "club": "Kiprun - Decathlon Malaysia", "leg": "Runner 4", "name": "HAZIQ  BIN MOHAMED HATTA", "gender": "m", "time": "00:11:04", "gap": "--"},
+            {"pl": 1, "contest": "Men Open", "bib": "110", "club": "Kiprun - Decathlon Malaysia", "leg": "Runner 5", "name": "AMRIL HAKIM  BIN SAROZI", "gender": "m", "time": "00:14:07", "gap": "--"},
+            {"pl": 2, "contest": "Men Open", "bib": "108", "club": "PacemakersMY Power Youth", "leg": "Runner 1", "name": "JING HONG CHONG", "gender": "m", "time": "00:11:13", "gap": "+09"},
+            {"pl": 2, "contest": "Men Open", "bib": "108", "club": "PacemakersMY Power Youth", "leg": "Runner 2", "name": "YE FENG PANG", "gender": "m", "time": "00:12:53", "gap": "+09"},
+            {"pl": 2, "contest": "Men Open", "bib": "108", "club": "PacemakersMY Power Youth", "leg": "Runner 3", "name": "ADAM RIZQI MOHD AZMI", "gender": "m", "time": "00:10:49", "gap": "+09"},
+            {"pl": 2, "contest": "Men Open", "bib": "108", "club": "PacemakersMY Power Youth", "leg": "Runner 4", "name": "QI YANG GOH", "gender": "m", "time": "00:12:32", "gap": "+09"},
+            {"pl": 2, "contest": "Men Open", "bib": "108", "club": "PacemakersMY Power Youth", "leg": "Runner 5", "name": "ZIXUEN NGEE", "gender": "m", "time": "00:11:25", "gap": "+09"},
+            {"pl": 3, "contest": "Men Open", "bib": "109", "club": "THE SPEEDSTERS", "leg": "Runner 1", "name": "MUHAMMAD AMNAN HAIKAL BIN ROSLAN", "gender": "m", "time": "00:13:19", "gap": "+7:17"},
+            {"pl": 3, "contest": "Men Open", "bib": "109", "club": "THE SPEEDSTERS", "leg": "Runner 2", "name": "DAREN  JAMES NAIR", "gender": "m", "time": "00:13:51", "gap": "+7:17"},
+            {"pl": 3, "contest": "Men Open", "bib": "109", "club": "THE SPEEDSTERS", "leg": "Runner 3", "name": "MUHAMMAD SHAHNAN BIN SALLEHUDDIN", "gender": "m", "time": "00:12:57", "gap": "+7:17"},
+            {"pl": 3, "contest": "Men Open", "bib": "109", "club": "THE SPEEDSTERS", "leg": "Runner 4", "name": "MOHAMAD AMIRUL ARIF  BIN MOHD AZRI", "gender": "m", "time": "00:14:07", "gap": "+7:17"},
+            {"pl": 3, "contest": "Men Open", "bib": "109", "club": "THE SPEEDSTERS", "leg": "Runner 5", "name": "YAZID  MARLEY", "gender": "m", "time": "00:11:46", "gap": "+7:17"},
+            {"pl": 4, "contest": "Men Open", "bib": "112", "club": "La Salle PJ", "leg": "Runner 1", "name": "KENNETH KUAN", "gender": "m", "time": "00:15:03", "gap": "+8:50"},
+            {"pl": 4, "contest": "Men Open", "bib": "112", "club": "La Salle PJ", "leg": "Runner 2", "name": "JULIAN LIM", "gender": "m", "time": "00:14:50", "gap": "+8:50"},
+            {"pl": 4, "contest": "Men Open", "bib": "112", "club": "La Salle PJ", "leg": "Runner 3", "name": "JEREMY KHOO KHAY KHIM", "gender": "m", "time": "00:11:01", "gap": "+8:50"},
+            {"pl": 4, "contest": "Men Open", "bib": "112", "club": "La Salle PJ", "leg": "Runner 4", "name": "KENNETH YAP KIEN LOY", "gender": "m", "time": "00:15:10", "gap": "+8:50"},
+            {"pl": 4, "contest": "Men Open", "bib": "112", "club": "La Salle PJ", "leg": "Runner 5", "name": "ONG KIAN MING", "gender": "m", "time": "00:11:30", "gap": "+8:50"},
+            {"pl": 5, "contest": "Men Open", "bib": "115", "club": "Danok runners", "leg": "Runner 1", "name": "SUGAN THANGARAJU", "gender": "m", "time": "00:13:26", "gap": "+10:19"},
+            {"pl": 5, "contest": "Men Open", "bib": "115", "club": "Danok runners", "leg": "Runner 2", "name": "DEVAN GUNALAN", "gender": "m", "time": "00:13:19", "gap": "+10:19"},
+            {"pl": 5, "contest": "Men Open", "bib": "115", "club": "Danok runners", "leg": "Runner 3", "name": "MANIHSELVAN SIVAKUMAR", "gender": "m", "time": "00:14:46", "gap": "+10:19"},
+            {"pl": 5, "contest": "Men Open", "bib": "115", "club": "Danok runners", "leg": "Runner 4", "name": "GOVINDA MOGAN", "gender": "m", "time": "00:14:34", "gap": "+10:19"},
+            {"pl": 5, "contest": "Men Open", "bib": "115", "club": "Danok runners", "leg": "Runner 5", "name": "VASANTHAN BALAKRISHNAN", "gender": "m", "time": "00:12:57", "gap": "+10:19"},
+            {"pl": 6, "contest": "Men Open", "bib": "114", "club": "Bless Buddies", "leg": "Runner 1", "name": "HONG CHEE YUNG", "gender": "m", "time": "00:15:45", "gap": "+11:31"},
+            {"pl": 6, "contest": "Men Open", "bib": "114", "club": "Bless Buddies", "leg": "Runner 2", "name": "TEH SHENG KAI NIGEL", "gender": "m", "time": "00:12:33", "gap": "+11:31"},
+            {"pl": 6, "contest": "Men Open", "bib": "114", "club": "Bless Buddies", "leg": "Runner 3", "name": "HENG AIK REN", "gender": "m", "time": "00:13:40", "gap": "+11:31"},
+            {"pl": 6, "contest": "Men Open", "bib": "114", "club": "Bless Buddies", "leg": "Runner 4", "name": "HONG KOON HOU", "gender": "m", "time": "00:12:57", "gap": "+11:31"},
+            {"pl": 6, "contest": "Men Open", "bib": "114", "club": "Bless Buddies", "leg": "Runner 5", "name": "KHOO KEAN TONG", "gender": "m", "time": "00:15:20", "gap": "+11:31"},
+            {"pl": 7, "contest": "Men Open", "bib": "103", "club": "BJ4", "leg": "Runner 1", "name": "NICK VOON", "gender": "m", "time": "00:13:11", "gap": "+13:27"},
+            {"pl": 7, "contest": "Men Open", "bib": "103", "club": "BJ4", "leg": "Runner 2", "name": "YU ZHE", "gender": "m", "time": "00:15:45", "gap": "+13:27"},
+            {"pl": 7, "contest": "Men Open", "bib": "103", "club": "BJ4", "leg": "Runner 3", "name": "VINCENT LAI", "gender": "m", "time": "00:15:32", "gap": "+13:27"},
+            {"pl": 7, "contest": "Men Open", "bib": "103", "club": "BJ4", "leg": "Runner 4", "name": "JIMMY LIEU", "gender": "m", "time": "00:14:19", "gap": "+13:27"},
+            {"pl": 7, "contest": "Men Open", "bib": "103", "club": "BJ4", "leg": "Runner 5", "name": "WONG  CHE SEONG", "gender": "m", "time": "00:13:24", "gap": "+13:27"},
+            {"pl": 8, "contest": "Men Open", "bib": "105", "club": "SJKC YUK CHAI ALL STARS 8", "leg": "Runner 1", "name": "LAI ZUO LI", "gender": "m", "time": "00:14:59", "gap": "+13:38"},
+            {"pl": 8, "contest": "Men Open", "bib": "105", "club": "SJKC YUK CHAI ALL STARS 8", "leg": "Runner 2", "name": "DANIYAL OOI KA MAN", "gender": "m", "time": "00:15:04", "gap": "+13:38"},
+            {"pl": 8, "contest": "Men Open", "bib": "105", "club": "SJKC YUK CHAI ALL STARS 8", "leg": "Runner 3", "name": "LOIUS TEOH SING FUNG", "gender": "m", "time": "00:15:13", "gap": "+13:38"},
+            {"pl": 8, "contest": "Men Open", "bib": "105", "club": "SJKC YUK CHAI ALL STARS 8", "leg": "Runner 4", "name": "TAN YAN XI", "gender": "m", "time": "00:14:01", "gap": "+13:38"},
+            {"pl": 8, "contest": "Men Open", "bib": "105", "club": "SJKC YUK CHAI ALL STARS 8", "leg": "Runner 5", "name": "HON CHEE YOONG", "gender": "m", "time": "00:13:05", "gap": "+13:38"},
+            {"pl": 9, "contest": "Men Open", "bib": "102", "club": "BE THE BEST ATHLETIC CLUB", "leg": "Runner 1", "name": "KAVEENDIRAN WASUDAVEN", "gender": "m", "time": "00:12:48", "gap": "+14:08"},
+            {"pl": 9, "contest": "Men Open", "bib": "102", "club": "BE THE BEST ATHLETIC CLUB", "leg": "Runner 2", "name": "NAGULAN LETCHUMANAN", "gender": "m", "time": "00:14:21", "gap": "+14:08"},
+            {"pl": 9, "contest": "Men Open", "bib": "102", "club": "BE THE BEST ATHLETIC CLUB", "leg": "Runner 3", "name": "VARSHAN PANIRSELVAM", "gender": "m", "time": "00:16:42", "gap": "+14:08"},
+            {"pl": 9, "contest": "Men Open", "bib": "102", "club": "BE THE BEST ATHLETIC CLUB", "leg": "Runner 4", "name": "HEMALAN KUMAR", "gender": "m", "time": "00:13:58", "gap": "+14:08"},
+            {"pl": 9, "contest": "Men Open", "bib": "102", "club": "BE THE BEST ATHLETIC CLUB", "leg": "Runner 5", "name": "NARESH VADEVELLAN", "gender": "m", "time": "00:15:02", "gap": "+14:08"},
+            {"pl": 10, "contest": "Men Open", "bib": "111", "club": "LACTIC ACID LAH", "leg": "Runner 1", "name": "CHIN HUN TEO", "gender": "m", "time": "00:16:12", "gap": "+15:42"},
+            {"pl": 10, "contest": "Men Open", "bib": "111", "club": "LACTIC ACID LAH", "leg": "Runner 2", "name": "BOON SENG  LAI", "gender": "m", "time": "00:15:35", "gap": "+15:42"},
+            {"pl": 10, "contest": "Men Open", "bib": "111", "club": "LACTIC ACID LAH", "leg": "Runner 3", "name": "GOPIRAJ JEGATHISAN", "gender": "m", "time": "00:16:14", "gap": "+15:42"},
+            {"pl": 10, "contest": "Men Open", "bib": "111", "club": "LACTIC ACID LAH", "leg": "Runner 4", "name": "ZHE XU OEH", "gender": "m", "time": "00:13:22", "gap": "+15:42"},
+            {"pl": 10, "contest": "Men Open", "bib": "111", "club": "LACTIC ACID LAH", "leg": "Runner 5", "name": "DAVID  BRIDGEMAN", "gender": "m", "time": "00:13:02", "gap": "+15:42"},
+            {"pl": 11, "contest": "Men Open", "bib": "101", "club": "PACEMAKERS VSOP", "leg": "Runner 1", "name": "LUKE CHUA TZE KAH", "gender": "m", "time": "00:13:41", "gap": "+16:47"},
+            {"pl": 11, "contest": "Men Open", "bib": "101", "club": "PACEMAKERS VSOP", "leg": "Runner 2", "name": "YUM  KIN KOK", "gender": "m", "time": "00:16:04", "gap": "+16:47"},
+            {"pl": 11, "contest": "Men Open", "bib": "101", "club": "PACEMAKERS VSOP", "leg": "Runner 3", "name": "LEE YEE SUM", "gender": "m", "time": "00:14:05", "gap": "+16:47"},
+            {"pl": 11, "contest": "Men Open", "bib": "101", "club": "PACEMAKERS VSOP", "leg": "Runner 4", "name": "TAN CHIN SEONG CHESTER", "gender": "m", "time": "00:16:17", "gap": "+16:47"},
+            {"pl": 11, "contest": "Men Open", "bib": "101", "club": "PACEMAKERS VSOP", "leg": "Runner 5", "name": "PAN  VUI JIUN", "gender": "m", "time": "00:15:24", "gap": "+16:47"},
+            {"pl": 12, "contest": "Men Open", "bib": "107", "club": "BrickByKL", "leg": "Runner 1", "name": "ETHAN CHEAH", "gender": "m", "time": "00:16:46", "gap": "+18:50"},
+            {"pl": 12, "contest": "Men Open", "bib": "107", "club": "BrickByKL", "leg": "Runner 2", "name": "LUCAS PEREIRA", "gender": "m", "time": "00:14:22", "gap": "+18:50"},
+            {"pl": 12, "contest": "Men Open", "bib": "107", "club": "BrickByKL", "leg": "Runner 3", "name": "KELVEN THONG", "gender": "m", "time": "00:15:44", "gap": "+18:50"},
+            {"pl": 12, "contest": "Men Open", "bib": "107", "club": "BrickByKL", "leg": "Runner 4", "name": "BRYAN  CHAI", "gender": "m", "time": "00:13:53", "gap": "+18:50"},
+            {"pl": 12, "contest": "Men Open", "bib": "107", "club": "BrickByKL", "leg": "Runner 5", "name": "YANG CHENGLIN", "gender": "m", "time": "00:16:49", "gap": "+18:50"},
+            {"pl": 13, "contest": "Men Open", "bib": "106", "club": "TEH BENG (DKRC)", "leg": "Runner 1", "name": "HOCK GUAN  YU", "gender": "m", "time": "00:14:24", "gap": "+22:37"},
+            {"pl": 13, "contest": "Men Open", "bib": "106", "club": "TEH BENG (DKRC)", "leg": "Runner 2", "name": "KOK WAI  YAP", "gender": "m", "time": "00:16:22", "gap": "+22:37"},
+            {"pl": 13, "contest": "Men Open", "bib": "106", "club": "TEH BENG (DKRC)", "leg": "Runner 3", "name": "HAN YANG  LEONG", "gender": "m", "time": "00:18:22", "gap": "+22:37"},
+            {"pl": 13, "contest": "Men Open", "bib": "106", "club": "TEH BENG (DKRC)", "leg": "Runner 4", "name": "ERNEST TEH", "gender": "m", "time": "00:17:00", "gap": "+22:37"},
+            {"pl": 13, "contest": "Men Open", "bib": "106", "club": "TEH BENG (DKRC)", "leg": "Runner 5", "name": "SEONG YEE TEH", "gender": "m", "time": "00:15:13", "gap": "+22:37"},
+            {"pl": 14, "contest": "Men Open", "bib": "116", "club": "PACEMAKERS GERMANY", "leg": "Runner 1", "name": "YANG CHANG WAH", "gender": "m", "time": "00:17:46", "gap": "+25:00"},
+            {"pl": 14, "contest": "Men Open", "bib": "116", "club": "PACEMAKERS GERMANY", "leg": "Runner 2", "name": "BEN YAP", "gender": "m", "time": "00:16:51", "gap": "+25:00"},
+            {"pl": 14, "contest": "Men Open", "bib": "116", "club": "PACEMAKERS GERMANY", "leg": "Runner 3", "name": "LIM SHAU WEN", "gender": "m", "time": "00:14:36", "gap": "+25:00"},
+            {"pl": 14, "contest": "Men Open", "bib": "116", "club": "PACEMAKERS GERMANY", "leg": "Runner 4", "name": "NICHOLAS CHAN THAW NAM", "gender": "m", "time": "00:17:06", "gap": "+25:00"},
+            {"pl": 14, "contest": "Men Open", "bib": "116", "club": "PACEMAKERS GERMANY", "leg": "Runner 5", "name": "JAREN NG JIE REN", "gender": "m", "time": "00:17:24", "gap": "+25:00"},
+            {"pl": 15, "contest": "Men Open", "bib": "113", "club": "The Fast & The Curious", "leg": "Runner 1", "name": "LEONG WAI LUN", "gender": "m", "time": "00:21:42", "gap": "+42:16"},
+            {"pl": 15, "contest": "Men Open", "bib": "113", "club": "The Fast & The Curious", "leg": "Runner 2", "name": "WONG KAH CHUN", "gender": "m", "time": "00:18:31", "gap": "+42:16"},
+            {"pl": 15, "contest": "Men Open", "bib": "113", "club": "The Fast & The Curious", "leg": "Runner 3", "name": "LOH CHAI WEE", "gender": "m", "time": "00:20:48", "gap": "+42:16"},
+            {"pl": 15, "contest": "Men Open", "bib": "113", "club": "The Fast & The Curious", "leg": "Runner 4", "name": "CHOW TECK WAH", "gender": "m", "time": "00:19:23", "gap": "+42:16"},
+            {"pl": 15, "contest": "Men Open", "bib": "113", "club": "The Fast & The Curious", "leg": "Runner 5", "name": "CHONG CHEE WEI", "gender": "m", "time": "00:20:36", "gap": "+42:16"},
+            {"pl": 16, "contest": "Men Open", "bib": "104", "club": "SJKC YUK CHAI ALL STARS 7", "leg": "Runner 1", "name": "CHONG HWEE YU", "gender": "m", "time": "00:21:58", "gap": "+48:39"},
+            {"pl": 16, "contest": "Men Open", "bib": "104", "club": "SJKC YUK CHAI ALL STARS 7", "leg": "Runner 2", "name": "HUNG ZEN YING", "gender": "m", "time": "00:21:54", "gap": "+48:39"},
+            {"pl": 16, "contest": "Men Open", "bib": "104", "club": "SJKC YUK CHAI ALL STARS 7", "leg": "Runner 3", "name": "LIM ZHI EAN", "gender": "m", "time": "00:21:00", "gap": "+48:39"},
+            {"pl": 16, "contest": "Men Open", "bib": "104", "club": "SJKC YUK CHAI ALL STARS 7", "leg": "Runner 4", "name": "LIM GUAN YEW", "gender": "m", "time": "00:20:23", "gap": "+48:39"},
+            {"pl": 16, "contest": "Men Open", "bib": "104", "club": "SJKC YUK CHAI ALL STARS 7", "leg": "Runner 5", "name": "CHAN KAR LOK", "gender": "m", "time": "00:22:07", "gap": "+48:39"},
+            {"pl": 1, "contest": "Mixed Open", "bib": "338", "club": "KACHS & Dash", "leg": "Runner 1", "name": "MOK TSUI SEAN", "gender": "m", "time": "00:08:42", "gap": "--"},
+            {"pl": 1, "contest": "Mixed Open", "bib": "338", "club": "KACHS & Dash", "leg": "Runner 2", "name": "TAN SEONG HUAT", "gender": "m", "time": "00:13:19", "gap": "--"},
+            {"pl": 1, "contest": "Mixed Open", "bib": "338", "club": "KACHS & Dash", "leg": "Runner 3", "name": "CARYN NG ZHU WEN", "gender": "f", "time": "00:09:29", "gap": "--"},
+            {"pl": 1, "contest": "Mixed Open", "bib": "338", "club": "KACHS & Dash", "leg": "Runner 4", "name": "NG PEI LENG", "gender": "f", "time": "00:10:19", "gap": "--"},
+            {"pl": 1, "contest": "Mixed Open", "bib": "338", "club": "KACHS & Dash", "leg": "Runner 5", "name": "YAP KO SHIN", "gender": "f", "time": "00:10:19", "gap": "--"},
+            {"pl": 2, "contest": "Mixed Open", "bib": "324", "club": "Team Coach Radelea", "leg": "Runner 1", "name": "MUHAMMAD FARHAN  MOHD MUZALI", "gender": "m", "time": "00:10:37", "gap": "+5:18"},
+            {"pl": 2, "contest": "Mixed Open", "bib": "324", "club": "Team Coach Radelea", "leg": "Runner 2", "name": "RHEA ASSYIFA ROHAZAM", "gender": "f", "time": "00:10:31", "gap": "+5:18"},
+            {"pl": 2, "contest": "Mixed Open", "bib": "324", "club": "Team Coach Radelea", "leg": "Runner 3", "name": "RADEA ARIFA ROHAZAM", "gender": "f", "time": "00:10:54", "gap": "+5:18"},
+            {"pl": 2, "contest": "Mixed Open", "bib": "324", "club": "Team Coach Radelea", "leg": "Runner 4", "name": "RAISYA ADELEA ROHAZAM", "gender": "f", "time": "00:12:13", "gap": "+5:18"},
+            {"pl": 2, "contest": "Mixed Open", "bib": "324", "club": "Team Coach Radelea", "leg": "Runner 5", "name": "WAN ISHMEL THOHAA  WAN ASRUL ARIF", "gender": "m", "time": "00:13:11", "gap": "+5:18"},
+            {"pl": 3, "contest": "Mixed Open", "bib": "306", "club": "PACEMAKERS PARIS", "leg": "Runner 1", "name": "CHEK  YIN HUAY", "gender": "f", "time": "00:10:55", "gap": "+6:59"},
+            {"pl": 3, "contest": "Mixed Open", "bib": "306", "club": "PACEMAKERS PARIS", "leg": "Runner 2", "name": "OOI  CHIN HEAN", "gender": "m", "time": "00:10:44", "gap": "+6:59"},
+            {"pl": 3, "contest": "Mixed Open", "bib": "306", "club": "PACEMAKERS PARIS", "leg": "Runner 3", "name": "NIK HASSAN BIN MAJID", "gender": "m", "time": "00:11:30", "gap": "+6:59"},
+            {"pl": 3, "contest": "Mixed Open", "bib": "306", "club": "PACEMAKERS PARIS", "leg": "Runner 4", "name": "NEW YEE SHEN", "gender": "m", "time": "00:11:26", "gap": "+6:59"},
+            {"pl": 3, "contest": "Mixed Open", "bib": "306", "club": "PACEMAKERS PARIS", "leg": "Runner 5", "name": "ALONG BIN MANJA", "gender": "m", "time": "00:14:33", "gap": "+6:59"},
+            {"pl": 4, "contest": "Mixed Open", "bib": "302", "club": "NOT LAST", "leg": "Runner 1", "name": "MEI KEE CHONG", "gender": "f", "time": "00:12:56", "gap": "+10:29"},
+            {"pl": 4, "contest": "Mixed Open", "bib": "302", "club": "NOT LAST", "leg": "Runner 2", "name": "KAH LOON CHONG", "gender": "m", "time": "00:11:22", "gap": "+10:29"},
+            {"pl": 4, "contest": "Mixed Open", "bib": "302", "club": "NOT LAST", "leg": "Runner 3", "name": "KAI PING YONG", "gender": "m", "time": "00:12:47", "gap": "+10:29"},
+            {"pl": 4, "contest": "Mixed Open", "bib": "302", "club": "NOT LAST", "leg": "Runner 4", "name": "CAO WEI JEE", "gender": "m", "time": "00:10:41", "gap": "+10:29"},
+            {"pl": 4, "contest": "Mixed Open", "bib": "302", "club": "NOT LAST", "leg": "Runner 5", "name": "PENG LEONG GOH", "gender": "m", "time": "00:14:51", "gap": "+10:29"},
+            {"pl": 5, "contest": "Mixed Open", "bib": "342", "club": "Maggi goreng double tambah sayur", "leg": "Runner 1", "name": "KOEY HE JIE", "gender": "m", "time": "00:10:36", "gap": "+10:45"},
+            {"pl": 5, "contest": "Mixed Open", "bib": "342", "club": "Maggi goreng double tambah sayur", "leg": "Runner 2", "name": "CHEONG KA FEI", "gender": "m", "time": "00:13:44", "gap": "+10:45"},
+            {"pl": 5, "contest": "Mixed Open", "bib": "342", "club": "Maggi goreng double tambah sayur", "leg": "Runner 3", "name": "CHANG WENG HENG", "gender": "m", "time": "00:12:02", "gap": "+10:45"},
+            {"pl": 5, "contest": "Mixed Open", "bib": "342", "club": "Maggi goreng double tambah sayur", "leg": "Runner 4", "name": "LOW WENG SEONG", "gender": "m", "time": "00:14:20", "gap": "+10:45"},
+            {"pl": 5, "contest": "Mixed Open", "bib": "342", "club": "Maggi goreng double tambah sayur", "leg": "Runner 5", "name": "LIEW SHU XIN", "gender": "f", "time": "00:12:11", "gap": "+10:45"},
+            {"pl": 6, "contest": "Mixed Open", "bib": "337", "club": "Trying Hard to Recover", "leg": "Runner 1", "name": "THINAGARAN A/L G. JOTHI RAMALINGAM", "gender": "m", "time": "00:13:02", "gap": "+10:57"},
+            {"pl": 6, "contest": "Mixed Open", "bib": "337", "club": "Trying Hard to Recover", "leg": "Runner 2", "name": "LAU CHIN JIEN", "gender": "m", "time": "00:11:04", "gap": "+10:57"},
+            {"pl": 6, "contest": "Mixed Open", "bib": "337", "club": "Trying Hard to Recover", "leg": "Runner 3", "name": "LAU CHIN WEI @ LOW CHIN WEI", "gender": "m", "time": "00:13:44", "gap": "+10:57"},
+            {"pl": 6, "contest": "Mixed Open", "bib": "337", "club": "Trying Hard to Recover", "leg": "Runner 4", "name": "LAU ZAY KYLE", "gender": "m", "time": "00:13:38", "gap": "+10:57"},
+            {"pl": 6, "contest": "Mixed Open", "bib": "337", "club": "Trying Hard to Recover", "leg": "Runner 5", "name": "LAU JOO LIAN", "gender": "f", "time": "00:11:38", "gap": "+10:57"},
+            {"pl": 7, "contest": "Mixed Open", "bib": "315", "club": "SHARP", "leg": "Runner 1", "name": "SUH HUEY LEE", "gender": "f", "time": "00:13:34", "gap": "+13:02"},
+            {"pl": 7, "contest": "Mixed Open", "bib": "315", "club": "SHARP", "leg": "Runner 2", "name": "LEAN PANG TAN", "gender": "m", "time": "00:14:42", "gap": "+13:02"},
+            {"pl": 7, "contest": "Mixed Open", "bib": "315", "club": "SHARP", "leg": "Runner 3", "name": "JUN WYE CHOW", "gender": "m", "time": "00:12:51", "gap": "+13:02"},
+            {"pl": 7, "contest": "Mixed Open", "bib": "315", "club": "SHARP", "leg": "Runner 4", "name": "JIAN REN VOON", "gender": "m", "time": "00:12:35", "gap": "+13:02"},
+            {"pl": 7, "contest": "Mixed Open", "bib": "315", "club": "SHARP", "leg": "Runner 5", "name": "TENGKU PUTRA", "gender": "m", "time": "00:11:28", "gap": "+13:02"},
+            {"pl": 8, "contest": "Mixed Open", "bib": "349", "club": "PACEMAKERS SINGAPORE", "leg": "Runner 1", "name": "YAP SHAO YIN", "gender": "f", "time": "00:12:30", "gap": "+13:22"},
+            {"pl": 8, "contest": "Mixed Open", "bib": "349", "club": "PACEMAKERS SINGAPORE", "leg": "Runner 2", "name": "TEE SHEA KHAI", "gender": "m", "time": "00:14:13", "gap": "+13:22"},
+            {"pl": 8, "contest": "Mixed Open", "bib": "349", "club": "PACEMAKERS SINGAPORE", "leg": "Runner 3", "name": "MARCUS ONG", "gender": "m", "time": "00:14:08", "gap": "+13:22"},
+            {"pl": 8, "contest": "Mixed Open", "bib": "349", "club": "PACEMAKERS SINGAPORE", "leg": "Runner 4", "name": "LIM WENJIA", "gender": "m", "time": "00:14:43", "gap": "+13:22"},
+            {"pl": 8, "contest": "Mixed Open", "bib": "349", "club": "PACEMAKERS SINGAPORE", "leg": "Runner 5", "name": "HRIR MOHAMED", "gender": "m", "time": "00:09:57", "gap": "+13:22"},
+            {"pl": 9, "contest": "Mixed Open", "bib": "344", "club": "THE BUJANGAN BANANA RUNNERS", "leg": "Runner 1", "name": "MOHD ALIFFNAZMI BIN LADIN", "gender": "m", "time": "00:13:34", "gap": "+14:23"},
+            {"pl": 9, "contest": "Mixed Open", "bib": "344", "club": "THE BUJANGAN BANANA RUNNERS", "leg": "Runner 2", "name": "HAIRRY JOY BIN JOSAN", "gender": "m", "time": "00:13:23", "gap": "+14:23"},
+            {"pl": 9, "contest": "Mixed Open", "bib": "344", "club": "THE BUJANGAN BANANA RUNNERS", "leg": "Runner 3", "name": "MOHD ZULEMAN BIN JIMUN", "gender": "m", "time": "00:13:22", "gap": "+14:23"},
+            {"pl": 9, "contest": "Mixed Open", "bib": "344", "club": "THE BUJANGAN BANANA RUNNERS", "leg": "Runner 4", "name": "MOHAMAD HAFIZ BIN LIMBAH", "gender": "m", "time": "00:14:30", "gap": "+14:23"},
+            {"pl": 9, "contest": "Mixed Open", "bib": "344", "club": "THE BUJANGAN BANANA RUNNERS", "leg": "Runner 5", "name": "SITI NURIZZATI MUNIRAH MALIK", "gender": "f", "time": "00:11:43", "gap": "+14:23"},
+            {"pl": 10, "contest": "Mixed Open", "bib": "327", "club": "For The Kudos", "leg": "Runner 1", "name": "SZE YING KEE", "gender": "f", "time": "00:12:10", "gap": "+14:29"},
+            {"pl": 10, "contest": "Mixed Open", "bib": "327", "club": "For The Kudos", "leg": "Runner 2", "name": "JULIETTE  EMMA LOPEZ", "gender": "f", "time": "00:12:41", "gap": "+14:29"},
+            {"pl": 10, "contest": "Mixed Open", "bib": "327", "club": "For The Kudos", "leg": "Runner 3", "name": "JUN SENG YONG", "gender": "m", "time": "00:13:45", "gap": "+14:29"},
+            {"pl": 10, "contest": "Mixed Open", "bib": "327", "club": "For The Kudos", "leg": "Runner 4", "name": "CHERN YANG ANG", "gender": "m", "time": "00:11:41", "gap": "+14:29"},
+            {"pl": 10, "contest": "Mixed Open", "bib": "327", "club": "For The Kudos", "leg": "Runner 5", "name": "MUHAMMAD SYUKRII BIN NAZIM MYDIN", "gender": "m", "time": "00:16:21", "gap": "+14:29"},
+            {"pl": 11, "contest": "Mixed Open", "bib": "336", "club": "TEAM SANTAI", "leg": "Runner 1", "name": "CHIN KEAN HOE", "gender": "m", "time": "00:11:47", "gap": "+14:45"},
+            {"pl": 11, "contest": "Mixed Open", "bib": "336", "club": "TEAM SANTAI", "leg": "Runner 2", "name": "CHONG YEE NOONG", "gender": "m", "time": "00:16:09", "gap": "+14:45"},
+            {"pl": 11, "contest": "Mixed Open", "bib": "336", "club": "TEAM SANTAI", "leg": "Runner 3", "name": "JOEL LIM EE HERN", "gender": "m", "time": "00:11:57", "gap": "+14:45"},
+            {"pl": 11, "contest": "Mixed Open", "bib": "336", "club": "TEAM SANTAI", "leg": "Runner 4", "name": "TOO WEN BIN", "gender": "m", "time": "00:14:32", "gap": "+14:45"},
+            {"pl": 11, "contest": "Mixed Open", "bib": "336", "club": "TEAM SANTAI", "leg": "Runner 5", "name": "CHAN KAI LEE", "gender": "f", "time": "00:12:29", "gap": "+14:45"},
+            {"pl": 12, "contest": "Mixed Open", "bib": "301", "club": "PACEMAKERS JAPAN", "leg": "Runner 1", "name": "ANNE SZE  CHAN", "gender": "f", "time": "00:14:03", "gap": "+15:16"},
+            {"pl": 12, "contest": "Mixed Open", "bib": "301", "club": "PACEMAKERS JAPAN", "leg": "Runner 2", "name": "JUN AN FOO", "gender": "m", "time": "00:11:16", "gap": "+15:16"},
+            {"pl": 12, "contest": "Mixed Open", "bib": "301", "club": "PACEMAKERS JAPAN", "leg": "Runner 3", "name": "MING YOU NGUI", "gender": "m", "time": "00:15:18", "gap": "+15:16"},
+            {"pl": 12, "contest": "Mixed Open", "bib": "301", "club": "PACEMAKERS JAPAN", "leg": "Runner 4", "name": "SHAO ENN KOO", "gender": "m", "time": "00:15:30", "gap": "+15:16"},
+            {"pl": 12, "contest": "Mixed Open", "bib": "301", "club": "PACEMAKERS JAPAN", "leg": "Runner 5", "name": "WEI MENG CHEN", "gender": "m", "time": "00:11:17", "gap": "+15:16"},
+            {"pl": 13, "contest": "Mixed Open", "bib": "311", "club": "Oriental", "leg": "Runner 1", "name": "MEI LEE POOK", "gender": "f", "time": "00:13:16", "gap": "+15:28"},
+            {"pl": 13, "contest": "Mixed Open", "bib": "311", "club": "Oriental", "leg": "Runner 2", "name": "LAI  CHOONG MUN", "gender": "f", "time": "00:11:43", "gap": "+15:28"},
+            {"pl": 13, "contest": "Mixed Open", "bib": "311", "club": "Oriental", "leg": "Runner 3", "name": "JEREMY NG", "gender": "m", "time": "00:12:56", "gap": "+15:28"},
+            {"pl": 13, "contest": "Mixed Open", "bib": "311", "club": "Oriental", "leg": "Runner 4", "name": "TERRY TAN", "gender": "m", "time": "00:13:50", "gap": "+15:28"},
+            {"pl": 13, "contest": "Mixed Open", "bib": "311", "club": "Oriental", "leg": "Runner 5", "name": "CHERN YANG KHOR", "gender": "m", "time": "00:15:52", "gap": "+15:28"},
+            {"pl": 14, "contest": "Mixed Open", "bib": "313", "club": "The 5 Turtles", "leg": "Runner 1", "name": "CHERYL WANG YUN NI", "gender": "f", "time": "00:15:18", "gap": "+15:58"},
+            {"pl": 14, "contest": "Mixed Open", "bib": "313", "club": "The 5 Turtles", "leg": "Runner 2", "name": "JAYDEN LIM GUAN YU", "gender": "m", "time": "00:11:28", "gap": "+15:58"},
+            {"pl": 14, "contest": "Mixed Open", "bib": "313", "club": "The 5 Turtles", "leg": "Runner 3", "name": "LIEW  CHUI YOKE", "gender": "f", "time": "00:13:35", "gap": "+15:58"},
+            {"pl": 14, "contest": "Mixed Open", "bib": "313", "club": "The 5 Turtles", "leg": "Runner 4", "name": "LEE KIEN MIN", "gender": "m", "time": "00:13:12", "gap": "+15:58"},
+            {"pl": 14, "contest": "Mixed Open", "bib": "313", "club": "The 5 Turtles", "leg": "Runner 5", "name": "LAI YOONG KHANG", "gender": "m", "time": "00:14:33", "gap": "+15:58"},
+            {"pl": 15, "contest": "Mixed Open", "bib": "310", "club": "PACEMAKERS BANGKOK", "leg": "Runner 1", "name": "TAN KIM NEE", "gender": "f", "time": "00:15:41", "gap": "+17:18"},
+            {"pl": 15, "contest": "Mixed Open", "bib": "310", "club": "PACEMAKERS BANGKOK", "leg": "Runner 2", "name": "LIM KIAN HUAT", "gender": "m", "time": "00:15:38", "gap": "+17:18"},
+            {"pl": 15, "contest": "Mixed Open", "bib": "310", "club": "PACEMAKERS BANGKOK", "leg": "Runner 3", "name": "NG WAI FATT", "gender": "m", "time": "00:12:11", "gap": "+17:18"},
+            {"pl": 15, "contest": "Mixed Open", "bib": "310", "club": "PACEMAKERS BANGKOK", "leg": "Runner 4", "name": "MUHAMAD FAEEZ AZNIE BIN AZMAN", "gender": "m", "time": "00:11:52", "gap": "+17:18"},
+            {"pl": 15, "contest": "Mixed Open", "bib": "310", "club": "PACEMAKERS BANGKOK", "leg": "Runner 5", "name": "LAI KWONG YIH", "gender": "m", "time": "00:14:04", "gap": "+17:18"},
+            {"pl": 16, "contest": "Mixed Open", "bib": "308", "club": "KEVIN CAN RUN", "leg": "Runner 1", "name": "HUI YEE KEE", "gender": "f", "time": "00:15:35", "gap": "+18:20"},
+            {"pl": 16, "contest": "Mixed Open", "bib": "308", "club": "KEVIN CAN RUN", "leg": "Runner 2", "name": "STEPHANIE SHU JUIN LIM", "gender": "f", "time": "00:14:11", "gap": "+18:20"},
+            {"pl": 16, "contest": "Mixed Open", "bib": "308", "club": "KEVIN CAN RUN", "leg": "Runner 3", "name": "KUAN YONG TEOH", "gender": "m", "time": "00:15:44", "gap": "+18:20"},
+            {"pl": 16, "contest": "Mixed Open", "bib": "308", "club": "KEVIN CAN RUN", "leg": "Runner 4", "name": "KEVIN WYE KEONG WONG", "gender": "m", "time": "00:12:24", "gap": "+18:20"},
+            {"pl": 16, "contest": "Mixed Open", "bib": "308", "club": "KEVIN CAN RUN", "leg": "Runner 5", "name": "KISHONDRA  KUMAR", "gender": "m", "time": "00:12:35", "gap": "+18:20"},
+            {"pl": 17, "contest": "Mixed Open", "bib": "333", "club": "THS (TEAM HIDUP SIHAT)", "leg": "Runner 1", "name": "MUHD TAUFIK SAZALI", "gender": "m", "time": "00:15:28", "gap": "+18:37"},
+            {"pl": 17, "contest": "Mixed Open", "bib": "333", "club": "THS (TEAM HIDUP SIHAT)", "leg": "Runner 2", "name": "NUR AIN SAZALI", "gender": "f", "time": "00:13:28", "gap": "+18:37"},
+            {"pl": 17, "contest": "Mixed Open", "bib": "333", "club": "THS (TEAM HIDUP SIHAT)", "leg": "Runner 3", "name": "TITI MASZEIAM", "gender": "f", "time": "00:11:40", "gap": "+18:37"},
+            {"pl": 17, "contest": "Mixed Open", "bib": "333", "club": "THS (TEAM HIDUP SIHAT)", "leg": "Runner 4", "name": "SYAFIKAH ABD.JALIL", "gender": "f", "time": "00:14:45", "gap": "+18:37"},
+            {"pl": 17, "contest": "Mixed Open", "bib": "333", "club": "THS (TEAM HIDUP SIHAT)", "leg": "Runner 5", "name": "MUHAMMAD ASRUL ASRAF BIN AB. GHANI", "gender": "m", "time": "00:15:24", "gap": "+18:37"},
+            {"pl": 18, "contest": "Mixed Open", "bib": "307", "club": "MYRA Team", "leg": "Runner 1", "name": "MYRA ATHENA AZLAN", "gender": "f", "time": "00:12:12", "gap": "+19:07"},
+            {"pl": 18, "contest": "Mixed Open", "bib": "307", "club": "MYRA Team", "leg": "Runner 2", "name": "MUHAMMAD HAQEEM MUSTAQIM HUSMADI", "gender": "m", "time": "00:14:34", "gap": "+19:07"},
+            {"pl": 18, "contest": "Mixed Open", "bib": "307", "club": "MYRA Team", "leg": "Runner 3", "name": "MUHAMAD FARIS AMZAR MUZAKRIS", "gender": "m", "time": "00:12:06", "gap": "+19:07"},
+            {"pl": 18, "contest": "Mixed Open", "bib": "307", "club": "MYRA Team", "leg": "Runner 4", "name": "MUHAMAD ANIQ NAUFAL MUZAKRIS", "gender": "m", "time": "00:16:31", "gap": "+19:07"},
+            {"pl": 18, "contest": "Mixed Open", "bib": "307", "club": "MYRA Team", "leg": "Runner 5", "name": "MUHAMMAD FIRDAUS ABDUL RASID", "gender": "m", "time": "00:15:52", "gap": "+19:07"},
+            {"pl": 19, "contest": "Mixed Open", "bib": "305", "club": "Five Did Laa", "leg": "Runner 1", "name": "MUN KAY LIN", "gender": "f", "time": "00:14:07", "gap": "+19:45"},
+            {"pl": 19, "contest": "Mixed Open", "bib": "305", "club": "Five Did Laa", "leg": "Runner 2", "name": "HAN WERN YAP", "gender": "m", "time": "00:13:32", "gap": "+19:45"},
+            {"pl": 19, "contest": "Mixed Open", "bib": "305", "club": "Five Did Laa", "leg": "Runner 3", "name": "EE KHYI LIN", "gender": "f", "time": "00:15:12", "gap": "+19:45"},
+            {"pl": 19, "contest": "Mixed Open", "bib": "305", "club": "Five Did Laa", "leg": "Runner 4", "name": "JOO FOONG LIN", "gender": "m", "time": "00:15:02", "gap": "+19:45"},
+            {"pl": 19, "contest": "Mixed Open", "bib": "305", "club": "Five Did Laa", "leg": "Runner 5", "name": "MARGARET LIN", "gender": "f", "time": "00:14:01", "gap": "+19:45"},
+            {"pl": 20, "contest": "Mixed Open", "bib": "312", "club": "KOPI BENG JI BUI (DKRC）", "leg": "Runner 1", "name": "CHUN YIP WONG", "gender": "m", "time": "00:14:16", "gap": "+20:10"},
+            {"pl": 20, "contest": "Mixed Open", "bib": "312", "club": "KOPI BENG JI BUI (DKRC）", "leg": "Runner 2", "name": "THI MY HONG VO", "gender": "f", "time": "00:14:30", "gap": "+20:10"},
+            {"pl": 20, "contest": "Mixed Open", "bib": "312", "club": "KOPI BENG JI BUI (DKRC）", "leg": "Runner 3", "name": "TANG LEONG YUN", "gender": "m", "time": "00:15:42", "gap": "+20:10"},
+            {"pl": 20, "contest": "Mixed Open", "bib": "312", "club": "KOPI BENG JI BUI (DKRC）", "leg": "Runner 4", "name": "TAN SIONG NEE", "gender": "f", "time": "00:13:35", "gap": "+20:10"},
+            {"pl": 20, "contest": "Mixed Open", "bib": "312", "club": "KOPI BENG JI BUI (DKRC）", "leg": "Runner 5", "name": "CHANG XIANG WEI", "gender": "m", "time": "00:14:16", "gap": "+20:10"},
+            {"pl": 21, "contest": "Mixed Open", "bib": "303", "club": "W RUNNING TEAM 1", "leg": "Runner 1", "name": "NG WEN MAY", "gender": "f", "time": "00:17:31", "gap": "+21:00"},
+            {"pl": 21, "contest": "Mixed Open", "bib": "303", "club": "W RUNNING TEAM 1", "leg": "Runner 2", "name": "LEE WEN JUN", "gender": "m", "time": "00:12:55", "gap": "+21:00"},
+            {"pl": 21, "contest": "Mixed Open", "bib": "303", "club": "W RUNNING TEAM 1", "leg": "Runner 3", "name": "KAI EN  GAN", "gender": "m", "time": "00:13:01", "gap": "+21:00"},
+            {"pl": 21, "contest": "Mixed Open", "bib": "303", "club": "W RUNNING TEAM 1", "leg": "Runner 4", "name": "JED TEH QI XIAN", "gender": "m", "time": "00:14:15", "gap": "+21:00"},
+            {"pl": 21, "contest": "Mixed Open", "bib": "303", "club": "W RUNNING TEAM 1", "leg": "Runner 5", "name": "IVAN LOONG KAR MAN", "gender": "m", "time": "00:15:27", "gap": "+21:00"},
+            {"pl": 22, "contest": "Mixed Open", "bib": "321", "club": "Windrunners", "leg": "Runner 1", "name": "XIAO QING  SAW", "gender": "f", "time": "00:14:58", "gap": "+21:15"},
+            {"pl": 22, "contest": "Mixed Open", "bib": "321", "club": "Windrunners", "leg": "Runner 2", "name": "CHI HUNG ADAM YAP", "gender": "m", "time": "00:16:24", "gap": "+21:15"},
+            {"pl": 22, "contest": "Mixed Open", "bib": "321", "club": "Windrunners", "leg": "Runner 3", "name": "SENG YON LIM", "gender": "m", "time": "00:15:48", "gap": "+21:15"},
+            {"pl": 22, "contest": "Mixed Open", "bib": "321", "club": "Windrunners", "leg": "Runner 4", "name": "CHUN YANG YAP", "gender": "m", "time": "00:14:27", "gap": "+21:15"},
+            {"pl": 22, "contest": "Mixed Open", "bib": "321", "club": "Windrunners", "leg": "Runner 5", "name": "NITHIYARUBHAN A/L MANIKAVASUM", "gender": "m", "time": "00:11:47", "gap": "+21:15"},
+            {"pl": 23, "contest": "Mixed Open", "bib": "351", "club": "JSPT TEAM", "leg": "Runner 1", "name": "KHAIROL HAKIMEY BIN YAHYA", "gender": "m", "time": "00:15:46", "gap": "+21:17"},
+            {"pl": 23, "contest": "Mixed Open", "bib": "351", "club": "JSPT TEAM", "leg": "Runner 2", "name": "MOHD HAFFIS BIN SUBOH", "gender": "m", "time": "00:14:34", "gap": "+21:17"},
+            {"pl": 23, "contest": "Mixed Open", "bib": "351", "club": "JSPT TEAM", "leg": "Runner 3", "name": "KHAIRUL NAIM BIN AHMAD SAUFY", "gender": "m", "time": "00:12:04", "gap": "+21:17"},
+            {"pl": 23, "contest": "Mixed Open", "bib": "351", "club": "JSPT TEAM", "leg": "Runner 4", "name": "MOHD HAFIZ HAFIZUL", "gender": "m", "time": "00:16:49", "gap": "+21:17"},
+            {"pl": 23, "contest": "Mixed Open", "bib": "351", "club": "JSPT TEAM", "leg": "Runner 5", "name": "MOHD ANIQ MUQRI", "gender": "m", "time": "00:14:12", "gap": "+21:17"}
+        ];
+
+        // Global variable tracking currently visible rows to enable sorting on filtered results
+        let currentDisplayData = [...runnerData];
+
+        function loadTableData(data) {
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = '';
+            
+            data.forEach(runner => {
+                let row = `<tr>
+                    <td>${runner.pl}</td>
+                    <td>${runner.contest}</td>
+                    <td>${runner.bib}</td>
+                    <td>${runner.club}</td>
+                    <td>${runner.leg}</td>
+                    <td><b>${runner.name}</b></td>
+                    <td><span class="gender-${runner.gender}">${runner.gender.toUpperCase()}</span></td>
+                    <td>${runner.time}</td>
+                    <td>${runner.gap}</td>
+                </tr>`;
+                tableBody.innerHTML += row;
+            });
+        }
+
+        function filterTable() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const selectedCategory = document.getElementById('categoryFilter').value;
+
+            currentDisplayData = runnerData.filter(runner => {
+                const matchesSearch = runner.name.toLowerCase().includes(query) || 
+                                      runner.bib.includes(query) || 
+                                      runner.club.toLowerCase().includes(query);
+                
+                const matchesCategory = (selectedCategory === 'All') || (runner.contest === selectedCategory);
+                
+                return matchesSearch && matchesCategory;
+            });
+
+            loadTableData(currentDisplayData);
+        }
+
+        let sortDirection = false;
+        function sortTable(columnIndex) {
+            const keys = ['pl', 'contest', 'bib', 'club', 'leg', 'name', 'gender', 'time', 'gap'];
+            const key = keys[columnIndex];
+            
+            sortDirection = !sortDirection;
+            
+            currentDisplayData.sort((a, b) => {
+                let valA = a[key];
+                let valB = b[key];
+                
+                if (typeof valA === 'number') {
+                    return sortDirection ? valA - valB : valB - valA;
+                } else {
+                    return sortDirection ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                }
+            });
+
+            const headers = document.querySelectorAll('th');
+            headers.forEach(th => th.classList.remove('th-sort-asc', 'th-sort-desc'));
+            headers[columnIndex].classList.add(sortDirection ? 'th-sort-asc' : 'th-sort-desc');
+
+            loadTableData(currentDisplayData);
+        }
+
+        window.onload = () => { loadTableData(runnerData); };
+    </script>
+
+</body>
+</html>
